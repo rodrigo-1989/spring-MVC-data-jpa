@@ -1,17 +1,15 @@
 package com.bolsadeideas.springboot.app;
 
 import com.bolsadeideas.springboot.app.auth.handler.LoginSuccessHandler;
+import com.bolsadeideas.springboot.app.models.service.JpaUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
-import javax.sql.DataSource;
 
 //Otra forma de darle seguridad es agregando prePostEnabled = true
 //asi de esta manera el controlador se anota con  @PreAuthorize("hasRole('ROLE_USER')")
@@ -22,10 +20,13 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
     private LoginSuccessHandler successHandler;
 
     @Autowired
-    BCryptPasswordEncoder passwordEncoder;
+    private BCryptPasswordEncoder passwordEncoder;
+
+    //@Autowired
+    //private DataSource dataSource;
 
     @Autowired
-    DataSource dataSource;
+    private JpaUserDetailsService userDetailsService;
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
@@ -49,14 +50,16 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Autowired
     public void configurerGlobal(AuthenticationManagerBuilder builder )throws Exception{
-        //Aqui ya estamos obteniendo los usuarios y roles desde la base de datos
+        builder.userDetailsService(userDetailsService)
+                .passwordEncoder(passwordEncoder);
+
+        /*Aqui ya estamos obteniendo los usuarios y roles desde la base de datos
+        //implementada con jdcb
         builder.jdbcAuthentication()
                 .dataSource(dataSource)
                 .passwordEncoder(passwordEncoder)
                 .usersByUsernameQuery("select username, password,enabled from users where username=?")
-                .authoritiesByUsernameQuery("select u.username,a.authority from authorities a inner join users u on (a.user_id=u.id) where u.username=?");
-
-
+                .authoritiesByUsernameQuery("select u.username,a.authority from authorities a inner join users u on (a.user_id=u.id) where u.username=?");*/
         /*
         Todo este bloque de codigo era para hacer autenticacion gusrdando usuarios y contraseñas
         en memoria
