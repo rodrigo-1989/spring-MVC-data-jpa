@@ -2,10 +2,14 @@ package com.bolsadeideas.springboot.app.controllers;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.Collection;
 import java.util.Map;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -13,6 +17,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.annotation.Secured;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestWrapper;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -35,12 +46,13 @@ import com.bolsadeideas.springboot.app.util.paginator.PageRender;
 @SessionAttributes("cliente")
 public class ClienteController {
 
+	protected final Log logger = LogFactory.getLog(this.getClass());
 	@Autowired
 	private IClienteService clienteService;
 
 	@Autowired
 	private IUploadFileService uploadFileService;
-
+	@Secured("ROLE_USER")
 	@GetMapping(value = "/uploads/{filename:.+}")
 	public ResponseEntity<Resource> verFoto(@PathVariable String filename) {
 
@@ -56,7 +68,7 @@ public class ClienteController {
 				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + recurso.getFilename() + "\"")
 				.body(recurso);
 	}
-
+	@Secured("ROLE_USER")
 	@GetMapping(value = "/ver/{id}")
 	public String ver(@PathVariable(value = "id") Long id, Map<String, Object> model, RedirectAttributes flash) {
 
@@ -71,8 +83,38 @@ public class ClienteController {
 		return "ver";
 	}
 
-	@RequestMapping(value = "/listar", method = RequestMethod.GET)
-	public String listar(@RequestParam(name = "page", defaultValue = "0") int page, Model model) {
+	@RequestMapping(value = {"/listar","/"}, method = RequestMethod.GET)
+	public String listar(@RequestParam(name = "page", defaultValue = "0") int page, Model model,
+						 Authentication authentication, HttpServletRequest request) {
+
+		if (authentication != null){
+			logger.info("Hola usuario autenticado: tu username es: ".concat(authentication.getName()));
+		}
+		//esta es otra forma de obtener el authentication para pasar mensaje de bienvenida
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		if (auth != null){
+			logger.info("Utilizando auth!! Hola usuario autenticado: tu username es: ".concat(auth.getName()));
+		}
+		if( hasRole("ROLE_ADMIN")){
+			logger.info("Hola ".concat(auth.getName()).concat(" tienes acceso") );
+		}else{
+			logger.info("Hola ".concat(auth.getName()).concat(" NO tienes acceso") );
+		}
+
+		//Esta seria otra manera mas con la clase SecurityContextHolderAwareRequestWrapper
+		SecurityContextHolderAwareRequestWrapper securityContext = new SecurityContextHolderAwareRequestWrapper(request,"ROLE_");
+
+		if (securityContext.isUserInRole("ADMIN")){
+			logger.info("Hola Forma usando SecurityContextHolderAwareRequestWrapper ".concat(auth.getName()).concat(" tienes acceso") );
+		}else {
+			logger.info("Hola Forma usando SecurityContextHolderAwareRequestWrapper ".concat(auth.getName()).concat("NO tienes acceso") );
+		}
+//Esta es ota forma mas de validar el rol Para esto se inyecta el objeto httpservletRequest en el metodo usado
+		if (request.isUserInRole("ROLE_ADMIN")){
+			logger.info("Hola Forma usando HttpServletRequest ".concat(auth.getName()).concat(" tienes acceso") );
+		}else {
+			logger.info("Hola Forma usando HttpServletRequest ".concat(auth.getName()).concat(" NO tienes acceso") );
+		}
 
 		Pageable pageRequest = PageRequest.of(page, 4);
 
@@ -84,7 +126,7 @@ public class ClienteController {
 		model.addAttribute("page", pageRender);
 		return "listar";
 	}
-
+	@Secured("ROLE_ADMIN")
 	@RequestMapping(value = "/form")
 	public String crear(Map<String, Object> model) {
 
@@ -93,7 +135,7 @@ public class ClienteController {
 		model.put("titulo", "Formulario de Cliente");
 		return "form";
 	}
-
+	@Secured("ROLE_ADMIN")
 	@RequestMapping(value = "/form/{id}")
 	public String editar(@PathVariable(value = "id") Long id, Map<String, Object> model, RedirectAttributes flash) {
 
@@ -113,7 +155,7 @@ public class ClienteController {
 		model.put("titulo", "Editar Cliente");
 		return "form";
 	}
-
+	@Secured("ROLE_ADMIN")
 	@RequestMapping(value = "/form", method = RequestMethod.POST)
 	public String guardar(@Valid Cliente cliente, BindingResult result, Model model,
 			@RequestParam("file") MultipartFile foto, RedirectAttributes flash, SessionStatus status) {
@@ -150,7 +192,7 @@ public class ClienteController {
 		flash.addFlashAttribute("success", mensajeFlash);
 		return "redirect:listar";
 	}
-
+	@Secured("ROLE_ADMIN")
 	@RequestMapping(value = "/eliminar/{id}")
 	public String eliminar(@PathVariable(value = "id") Long id, RedirectAttributes flash) {
 
@@ -166,5 +208,29 @@ public class ClienteController {
 
 		}
 		return "redirect:/listar";
+	}
+
+	//Este es otra manera de obtener los roles del usuario
+	private boolean hasRole(String role){
+		SecurityContext context = SecurityContextHolder.getContext();
+		if(context == null ){
+			return false;
+		}
+		Authentication auth = context.getAuthentication();
+		if (auth == null){
+			return false;
+		}
+
+		Collection<? extends GrantedAuthority> authorities = auth.getAuthorities();
+		//Esta es otra manera de saber si usuario tiene algun tipo de rol
+		return authorities.contains(new SimpleGrantedAuthority(role));
+		/*for( GrantedAuthority authority:authorities){
+			if (role.equals(authority.getAuthority())){
+				logger.info("Hola usuario: ".concat(auth.getName()).concat(" tu rol es: ").concat(authority.getAuthority()) );
+				return true;
+			}
+		}
+		return false;*/
+
 	}
 }
