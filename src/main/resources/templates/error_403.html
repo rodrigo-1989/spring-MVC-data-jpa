@@ -6,11 +6,10 @@
 
     <div class="container py-4 w-50 ">
         <div class="card bg-danger text-white">
-            <div class="card-header">Error: acceso denegado! °_°</div>
+            <div class="card-header" th:text="#{text.security.error.403.titulo}">Error: acceso denegado! °_°</div>
             <div class="card-body">
-                <h5 class="card-title">Lo sentimos <span th:text="${#httpServletRequest.remoteUser}"></span>,
-                No tienes permiso para acceder a este recurso</h5>
-                <a class="btn btn-outline-primary border-white text-white" role="button" th:href="@{/listar}" >Regresar al inicio</a>
+                <h5 class="card-title" th:utext="#{text.security.error.403.permiso(${#authentication.name})}"></h5>
+                <a class="btn btn-outline-primary border-white text-white" role="button" th:href="@{/listar}" th:text="#{text.security.error.403.volver}"></a>
             </div>
         </div>
     </div>
