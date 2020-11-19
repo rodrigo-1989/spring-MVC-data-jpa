@@ -30,7 +30,7 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        http.authorizeRequests().antMatchers("/","/css/**","/js/**","/images/**","/listar","/locale").permitAll()
+        http.authorizeRequests().antMatchers("/","/css/**","/js/**","/images/**","/listar**","/locale","/api/clientes/**").permitAll()
         /* La idea es de remplazar todas estas autorixzaciones desde los controladores con anotaciones
         .antMatchers("/ver/**").hasAnyRole("USER")
         .antMatchers("/uploads/**").hasAnyRole("USER")
